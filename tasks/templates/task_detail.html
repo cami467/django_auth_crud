@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<main class="container vh-100 d-flex justify-content-center align-items-center">
+    <div class="card shadow-lg border-0 rounded" style="max-width: 600px; width: 100%;">
+        <div class="card-header bg-info text-white text-center">
+            <h2>{{ task.title }}</h2>
+        </div>
+        <div class="card-body">
+
+            {% if error %}
+                <div class="alert alert-danger text-center">
+                    {{ error }}
+                </div>
+            {% endif %}
+
+            {% if not task.datecompleted %}
+                <!-- Formulario de actualización con todos los botones en la misma línea -->
+                <form method="POST" class="mb-3">
+                    {% csrf_token %}
+                    {{ form.as_p }}
+
+                    <div class="d-flex justify-content-center gap-3 mt-3">
+                        <button type="submit" class="btn btn-primary btn-sm">
+                            <i class="bi bi-pencil-square me-1"></i> Update
+                        </button>
+
+                        <button formaction="{% url 'complete_task' task.id %}" 
+                                type="submit" class="btn btn-success btn-sm">
+                            <i class="bi bi-check-circle-fill me-1"></i> Complete
+                        </button>
+
+                        <button formaction="{% url 'delete_task' task.id %}" 
+                                type="submit" class="btn btn-danger btn-sm">
+                            <i class="bi bi-trash-fill me-1"></i> Delete
+                        </button>
+                    </div>
+                </form>
+            {% else %}
+                <!-- Solo botón Delete -->
+                <div class="d-flex justify-content-center">
+                    <form action="{% url 'delete_task' task.id %}" method="POST">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-danger btn-sm">
+                            <i class="bi bi-trash-fill me-1"></i> Delete
+                        </button>
+                    </form>
+                </div>
+            {% endif %}
+
+        </div>
+    </div>
+</main>
+
+{% endblock %}
