@@ -5,23 +5,33 @@
 <main class="container">
     <div class="row">
         <div class="col-md-4 offset-md-4 mt-5">
-            <form action="/signup/" method="POST" class="card card-body">
+            <form action="{% url 'signup' %}" method="POST" class="card card-body">
                 <h1 class="text-center">Signup</h1>
-                {{error}}
+                {% if error %}
+                <div class="alert alert-danger">{{ error }}</div>
+                {% endif %}
+
+                {% if form.non_field_errors %}
+                <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+                {% endif %}
+
                 {% csrf_token %}
                 <div class="mb-3">
                     <label for="username" class="form-label">Username:</label>
-                    <input type="text" name="username" id="username" placeholder="write your username" class="form-control">
+                    <input type="text" name="username" id="username" placeholder="write your username" class="form-control" value="{{ form.username.value|default:'' }}">
+                    <div class="text-danger small mt-1">{{ form.username.errors }}</div>
                 </div>
 
                 <div class="mb-3">
                     <label for="password1" class="form-label">Password:</label>
                     <input type="password" name="password1" id="password1" placeholder="write your password" class="form-control">
+                    <div class="text-danger small mt-1">{{ form.password1.errors }}</div>
                 </div>
 
                 <div class="mb-3">
                     <label for="password2" class="form-label">Confirm your Password:</label>
                     <input type="password" name="password2" id="password2" placeholder="Confirm your password" class="form-control">
+                    <div class="text-danger small mt-1">{{ form.password2.errors }}</div>
                 </div>
 
                 <button class="btn btn-primary">

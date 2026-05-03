@@ -15,7 +15,7 @@
                 </div>
             {% endif %}
 
-            <form action="/tasks/create/" method="POST" class="needs-validation" novalidate>
+            <form action="{% url 'create_task' %}" method="POST" class="needs-validation" novalidate>
                 {% csrf_token %}
                 {{ form.as_p }}
 

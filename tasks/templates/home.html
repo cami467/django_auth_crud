@@ -8,8 +8,8 @@
         <h1 class="fw-light">Django App</h1>
         <p class="lead text-muted">This is a simple Django CRUD application with user authentication.</p>
         <p>
-          <a href="/signup/" class="btn btn-primary my-2">Signup</a>
-          <a href="/signin/" class="btn btn-secondary my-2">Signin</a>
+          <a href="{% url 'signup' %}" class="btn btn-primary my-2">Signup</a>
+          <a href="{% url 'signin' %}" class="btn btn-secondary my-2">Signin</a>
         </p>
       </div>
     </div>

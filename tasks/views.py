@@ -1,59 +1,70 @@
-from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
-from django.contrib.auth.models import User
-from django.contrib.auth import login, logout, authenticate
-from django.db import IntegrityError
+from django.contrib.auth import login, logout
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
+from django.db import DatabaseError, IntegrityError
+from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
+
 from .forms import TaskForm
 from .models import Task
-from django.utils import timezone
-from django.contrib.auth.decorators import login_required
 
 
 # Create your views here.
 #Vista a la ruta de usuario
 def home(request):
     return render(request, 'home.html')
-#Vista
-def signup(request):
 
-    if request.method == 'GET': #entra por get(abre la pagina)
-       return render(request, 'signup.html', {
-            'form': UserCreationForm()
-         })
-    else:
-        if request.POST['password1'] == request.POST['password2']: #Verifica que ambas contrasenas sean iguales
-            try: #Si son iguales entra en try
-                #register user. Creacion de usuario en la bd 
-                user = User.objects.create_user(username=request.POST['username'], #metodo para crear un objeto nuevo
-                password=request.POST['password1'])# Le pasamos el usuario y la contrasena
-                user.save()# lo guardamos
-                login(request, user) #INICIAMOS SESION
-                return redirect('tasks') #redireccionamos a home
-            except IntegrityError: #Si el usuario ya existe entra en except
-                return render(request, 'signup.html', {
-                    'form': UserCreationForm,
-                    'error': 'El usuario ya existe'
-                })
+
+def signup(request):
+    if request.user.is_authenticated:
+        return redirect('tasks')
+
+    if request.method == 'GET':
         return render(request, 'signup.html', {
-                    'form': UserCreationForm,
-                    'error': 'Las contraseñas no coinciden'
+            'form': UserCreationForm()
         })
-  
-@login_required     
+
+    form = UserCreationForm(request.POST)
+
+    try:
+        if form.is_valid():
+            user = form.save()
+            login(request, user)
+            return redirect('tasks')
+    except IntegrityError:
+        return render(request, 'signup.html', {
+            'form': form,
+            'error': 'No se pudo crear el usuario. Intenta con otro nombre.',
+        }, status=400)
+    except DatabaseError:
+        return render(request, 'signup.html', {
+            'form': form,
+            'error': 'La base de datos no está disponible. Revisa DATABASE_URL en Render.',
+        }, status=503)
+
+    return render(request, 'signup.html', {
+        'form': form,
+        'error': 'No se pudo crear el usuario. Revisa los datos.',
+    }, status=400)
+
+
+@login_required
 def tasks(request):
     tasks = Task.objects.filter(user=request.user, datecompleted__isnull=True)
-    
-    return render(request, 'tasks.html',{
+
+    return render(request, 'tasks.html', {
         'tasks': tasks,
         'title': '📋 Tasks Pending'
     })
-    
+
 
 @login_required
 def tasks_completed(request):
-    tasks = Task.objects.filter(user=request.user, datecompleted__isnull=False).order_by
-    ('-datecompleted')
-    return render(request, 'tasks.html',{
+    tasks = Task.objects.filter(
+        user=request.user,
+        datecompleted__isnull=False,
+    ).order_by('-datecompleted')
+    return render(request, 'tasks.html', {
         'tasks': tasks,
         'title': 'Tasks Completed'
     })
@@ -62,53 +73,50 @@ def tasks_completed(request):
 @login_required
 def create_task(request):
     if request.method == 'GET':
-        return render(request, 'create_task.html',{
+        return render(request, 'create_task.html', {
             'form': TaskForm()
         })
-    else: 
-        try:
-            form = TaskForm(request.POST)
-            new_task = form.save(commit=False)
-            new_task.user = request.user
-            new_task.save()
-            return redirect('tasks') 
-        except ValueError:
-            return render(request, 'create_task.html',{
-                'form': TaskForm,
-                'error': 'Please provide valid data'
-         })
+
+    form = TaskForm(request.POST)
+    if form.is_valid():
+        new_task = form.save(commit=False)
+        new_task.user = request.user
+        new_task.save()
+        return redirect('tasks')
+
+    return render(request, 'create_task.html', {
+        'form': form,
+        'error': 'Please provide valid data'
+    }, status=400)
             
 @login_required
 def task_detail(request, task_id):
     task = get_object_or_404(Task, pk=task_id, user=request.user)
-    
-    #Si la tarea ya esta completada, no permitr edicion
+
     if task.datecompleted:
-        return render(request, 'task_detail.html',{
-        'task': task,
-        'form': None,
-        'error': 'This task is already completed and cannot be edited'
-    })
-    
-    
+        return render(request, 'task_detail.html', {
+            'task': task,
+            'form': None,
+            'error': 'This task is already completed and cannot be edited'
+        })
+
     if request.method == 'GET':
-        task = get_object_or_404(Task, pk=task_id, user=request.user)
-        form =TaskForm(instance=task)
-        return render(request, 'task_detail.html',{
+        form = TaskForm(instance=task)
+        return render(request, 'task_detail.html', {
+            'task': task,
+            'form': form
+        })
+
+    form = TaskForm(request.POST, instance=task)
+    if form.is_valid():
+        form.save()
+        return redirect('tasks')
+
+    return render(request, 'task_detail.html', {
         'task': task,
-        'form': form
-    })
-    else:
-        form = TaskForm(request.POST, instance=task)
-        if form.is_valid():
-            form.save()
-            return redirect('tasks')
-        else:
-            return render(request, 'task_detail.html',{
-                'task': task,
-                'form': form,
-                'error': 'Error updating task. Please provide valid data.'
-            })
+        'form': form,
+        'error': 'Error updating task. Please provide valid data.'
+    }, status=400)
 
 @login_required
 def complete_task(request, task_id):
@@ -117,35 +125,43 @@ def complete_task(request, task_id):
         task.datecompleted = timezone.now()
         task.save()
         return redirect('tasks')
-   
+
+
 @login_required
 def delete_task(request, task_id):
     task = get_object_or_404(Task, pk=task_id, user=request.user)
     if request.method == 'POST':
         task.delete()
         return redirect('tasks')
-   
+
+
 @login_required
-def signout(request):#Vista para cerrar sesion
-      logout(request) #CERRAMOS SESION
-      return redirect('home') #REDIRECCIONAMOS A HOME
-    
-def signin(request): #Vista para iniciar sesion
+def signout(request):
+    logout(request)
+    return redirect('home')
+
+
+def signin(request):
+    if request.user.is_authenticated:
+        return redirect('tasks')
+
     if request.method == 'GET':
-        return render(request, 'signin.html',{
-            'form': AuthenticationForm
+        return render(request, 'signin.html', {
+            'form': AuthenticationForm()
         })
-    else:
-        user = authenticate(request, username=request.POST['username'], password=request.POST
-        ['password'])
-        
-        if user is None:
-            return render(request, 'signin.html',{
-                'form': AuthenticationForm,
-                'error': 'Usuario o contraseña incorrecta'
-            })
-        else:
-            login(request, user) #INICIAMOS SESION
+
+    form = AuthenticationForm(request, data=request.POST)
+    try:
+        if form.is_valid():
+            login(request, form.get_user())
             return redirect('tasks')
-        
-       
+    except DatabaseError:
+        return render(request, 'signin.html', {
+            'form': form,
+            'error': 'La base de datos no está disponible. Revisa DATABASE_URL en Render.'
+        }, status=503)
+
+    return render(request, 'signin.html', {
+        'form': form,
+        'error': 'Usuario o contraseña incorrecta'
+    }, status=400)

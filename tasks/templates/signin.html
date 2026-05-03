@@ -5,26 +5,32 @@
 <main class="container">
     <div class="row">
         <section class="col-md-4 offset-md-4 mt-5">
-            <form action="/signin/" method="POST" class="card card-body">
+            <form action="{% url 'signin' %}" method="POST" class="card card-body">
 
                 <h1 class="text-center">Iniciar sesión</h1>
 
-                {{error}}
+                {% if error %}
+                <div class="alert alert-danger">{{ error }}</div>
+                {% endif %}
+
+                {% if form.non_field_errors %}
+                <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+                {% endif %}
 
                 {% csrf_token %}
 
-                {{error}}
-                {% csrf_token %}
                 <div class="mb-3">
                     <label for="username" class="form-label">Username:</label>
                     <input type="text" name="username" id="username" placeholder="write your username"
-                        class="form-control">
+                        class="form-control" value="{{ form.username.value|default:'' }}">
+                    <div class="text-danger small mt-1">{{ form.username.errors }}</div>
                 </div>
 
                 <div class="mb-3">
                     <label for="password" class="form-label">Password:</label>
                     <input type="password" name="password" id="password" placeholder="write your password"
                         class="form-control">
+                    <div class="text-danger small mt-1">{{ form.password.errors }}</div>
                 </div>
 
                 <button class="btn btn-primary">
